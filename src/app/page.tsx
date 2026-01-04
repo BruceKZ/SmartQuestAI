@@ -5,22 +5,6 @@ import { GraduationCap, ArrowRight, CheckCircle2, Zap, Brain } from "lucide-reac
 export default function Home() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <header className="px-4 lg:px-6 h-16 flex items-center border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
-        <div className="container mx-auto max-w-7xl flex items-center w-full">
-        <Link className="flex items-center justify-center" href="#">
-          <GraduationCap className="h-6 w-6 mr-2 text-primary" />
-          <span className="font-bold text-xl">SmartQuest AI</span>
-        </Link>
-        <nav className="ml-auto flex gap-4 sm:gap-6">
-          <Link className="text-sm font-medium hover:text-primary transition-colors" href="/login">
-            Login
-          </Link>
-          <Link className="text-sm font-medium hover:text-primary transition-colors" href="/library">
-            Dashboard
-          </Link>
-        </nav>
-        </div>
-      </header>
       <main className="flex-1">
         <section className="w-full py-12 md:py-24 lg:py-32 xl:py-48 bg-gradient-to-b from-background to-muted/50">
           <div className="container mx-auto max-w-7xl px-4 md:px-6">
