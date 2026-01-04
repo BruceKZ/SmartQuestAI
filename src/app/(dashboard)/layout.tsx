@@ -1,5 +1,4 @@
-import { AppSidebar } from '@/components/shared/app-sidebar'
-import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
+import { TopNav } from '@/components/shared/top-nav'
 
 export default function DashboardLayout({
   children,
@@ -7,17 +6,11 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <main className="w-full">
-        <div className="p-2 md:p-4 border-b flex items-center gap-4">
-          <SidebarTrigger />
-          <h1 className="font-semibold text-lg">SmartQuest AI</h1>
-        </div>
-        <div className="p-2 md:p-4">
-          {children}
-        </div>
+    <div className="flex min-h-screen flex-col">
+      <TopNav />
+      <main className="flex-1 container py-6">
+        {children}
       </main>
-    </SidebarProvider>
+    </div>
   )
 }
