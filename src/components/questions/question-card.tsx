@@ -26,9 +26,7 @@ export function QuestionCard({ question, allTags }: QuestionCardProps) {
           <Badge variant={question.type === 'SINGLE' ? 'default' : 'secondary'}>
             {question.type}
           </Badge>
-          <Badge variant="outline">
-            Lvl {question.difficulty}
-          </Badge>
+
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

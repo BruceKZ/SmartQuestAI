@@ -1,25 +1,11 @@
 'use server'
 
 import { generateObject } from 'ai'
-import { openai } from '@ai-sdk/openai'
+import { google } from '@ai-sdk/google'
 import { ExtractionResultSchema } from './schemas'
-import { fromPath } from 'pdf2pic'
-import { join } from 'path'
-import { writeFile, unlink, readFile, readdir } from 'fs/promises'
-import { tmpdir } from 'os'
 import { v4 as uuidv4 } from 'uuid'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/lib/supabase/server'
-
-// Configure PDF to Image converter
-const options = {
-  density: 300,
-  saveFilename: 'page',
-  savePath: tmpdir(),
-  format: 'png',
-  width: 2480,
-  height: 3508,
-}
 
 export async function processPdf(formData: FormData) {
   const file = formData.get('file') as File
@@ -27,51 +13,62 @@ export async function processPdf(formData: FormData) {
     throw new Error('No file provided')
   }
 
-  const buffer = Buffer.from(await file.arrayBuffer())
-  const tempDir = join(tmpdir(), `smartquest-${uuidv4()}`)
-  const tempFilePath = join(tempDir, 'input.pdf')
-
-  // Create temp directory
-  await require('fs').promises.mkdir(tempDir, { recursive: true })
-  
   try {
-    // Save PDF to temp file
-    await writeFile(tempFilePath, buffer)
-
-    // Convert PDF pages to images
-    // Note: pdf2pic requires GraphicsMagick/ImageMagick to be installed
-    const converter = fromPath(tempFilePath, {
-      ...options,
-      savePath: tempDir,
-    })
-
-    // We need to know how many pages to convert. 
-    // For now, let's assume we convert page 1. 
-    // Ideally we'd use pdf-lib to count pages or convert all.
-    // pdf2pic 'bulk' conversion is possible.
-    
-    // Let's try to convert the first page for the prototype
-    const result = await converter(1, { responseType: 'image' })
-    
-    if (!result.path) {
-        throw new Error('Failed to convert PDF page to image')
-    }
-    
-    // Read the image file
-    const imagePath = result.path
-    const imageBuffer = await readFile(imagePath)
-    const base64Image = imageBuffer.toString('base64')
+    // Convert File to Buffer and then to Base64 for Gemini
+    // Note: Vercel AI SDK with Google provider supports base64 for files
+    const buffer = Buffer.from(await file.arrayBuffer())
+    const base64Content = buffer.toString('base64')
 
     // Call AI
     const { object } = await generateObject({
-      model: openai('gpt-4o'),
+      model: google('gemini-2.0-flash'),
       schema: ExtractionResultSchema,
+      system: `You are an expert academic content digitizer. Your specific task is to extract exam questions and their detailed solutions from a "Solutions Key" PDF document.
+
+### 1. NOISE FILTERING & CLEANING
+- **Ignore OCR Artifacts**: Strictly ignore page markers (e.g., "+1/2/59+"), source tags (e.g., ""), and header/footer text (e.g., "SCIPER", "Student 1", "DO NOT UNSTAPLE").
+- **Merge Broken Lines**: The PDF contains explicit line breaks. You must merge distinct sentences into coherent paragraphs.
+
+### 2. QUESTION EXTRACTION RULES
+- **Identify Questions**: Questions typically start with "Question X" or "Question X (Topic)". Remove the "Question X" prefix from the 'content' field to keep it clean.
+- **Formatting**: Use **Markdown** for text styling.
+- **Math/LaTeX**: 
+  - Detect ALL mathematical expressions.
+  - Convert them to standard LaTeX format.
+  - Use '$' for inline math (e.g., $f(x) = x^2$) and '$$' for block math.
+  - **Crucial**: Fix broken OCR math (e.g., if OCR reads "XTX", infer it implies $X^TX$ based on context).
+
+### 3. TYPE DETERMINATION & OPTIONS
+- **MULTIPLE CHOICE (SINGLE/MULTI)**:
+  - **Option IDs**: The 'id' MUST be a short label (e.g., "A", "B", "C"). **NEVER** put full content into 'id'.
+  - **Identify Answer**: Look for visual markers (☑) or solution keys in the text. Return ONLY the ID(s).
+- **TRUE/FALSE (TRUE_FALSE)**:
+  - Use "A" for True and "B" for False (or labels used in PDF).
+- **OPEN QUESTIONS (ESSAY)**:
+  - If no options are present, classify as ESSAY.
+  - **Answer**: Extract the model answer or final result if provided in the PDF.
+
+### 4. SOLUTION & EXPLANATION EXTRACTION
+- **Mandatory**: If the PDF contains a "Solution:" or "Explanation:" block after a question, you **MUST** extract its entire content into the 'explanation' field.
+- **Formatting**: Preserve all LaTeX formulas and logical steps.
+- **Goal**: Do NOT generate new explanations; only extract what is explicitly written in the document.
+
+### 5. EDGE CASES
+- **No Options**: Classify as ESSAY. NEVER invent options.
+- **Sub-questions**: Include all parts in the main 'content' field.`,
       messages: [
         {
           role: 'user',
           content: [
-            { type: 'text', text: 'Extract all questions from this exam page. Identify the type, options, answer (if marked), and explanation. Return structured JSON.' },
-            { type: 'image', image: base64Image },
+            { 
+              type: 'text', 
+              text: `Extract the exam questions from this solution key file. Ensure logic and formulas are perfectly preserved.` 
+            },
+            { 
+              type: 'file', 
+              data: base64Content, 
+              mediaType: 'application/pdf' 
+            },
           ],
         },
       ],
@@ -127,7 +124,7 @@ export async function processPdf(formData: FormData) {
             options: q.options ? JSON.stringify(q.options) : undefined,
             answer: q.answer ? JSON.stringify(q.answer) : undefined,
             explanation: q.explanation,
-            difficulty: q.difficulty || 1,
+
             status: 'REVIEW',
             parent_pdf_id: sourceFile.id,
             author_id: userId
@@ -139,13 +136,6 @@ export async function processPdf(formData: FormData) {
   } catch (error) {
     console.error('PDF Processing Error:', error)
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
-  } finally {
-    // Cleanup temp files
-    try {
-        // await rm(tempDir, { recursive: true, force: true }) 
-        // Using fs.rm is better but let's just leave it for debug for now or implement proper cleanup
-    } catch (e) {
-        console.error('Cleanup error', e)
-    }
   }
 }
+

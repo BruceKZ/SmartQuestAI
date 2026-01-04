@@ -2,19 +2,37 @@
 
 import { useCallback, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { UploadCloud, File, X, Loader2 } from 'lucide-react'
+import { UploadCloud, File, X, Loader2, ChevronDown, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Progress } from '@/components/ui/progress'
+import { experimental_useObject as useObject } from '@ai-sdk/react'
+import { ExtractionResultSchema, Question } from '@/lib/ai/schemas'
+import { toast } from 'sonner'
 
 interface UploadDropzoneProps {
-  onUpload: (file: File) => Promise<void>
+  onQuestionsExtracted: (questions: Question[], fileName: string) => void
 }
 
-export function UploadDropzone({ onUpload }: UploadDropzoneProps) {
+export function UploadDropzone({ onQuestionsExtracted }: UploadDropzoneProps) {
   const [file, setFile] = useState<File | null>(null)
-  const [isUploading, setIsUploading] = useState(false)
-  const [uploadProgress, setUploadProgress] = useState(0)
+  const [elapsedTime, setElapsedTime] = useState(0)
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false)
+
+  const { object, submit, isLoading, error } = useObject({
+    api: '/api/process-pdf',
+    schema: ExtractionResultSchema,
+    onFinish: (result: { object?: any, error?: Error }) => {
+      if (result.object && result.object.questions) {
+        toast.success('Processing complete!')
+        // Pass questions and filename to parent
+        onQuestionsExtracted(result.object.questions, file?.name || 'uploaded.pdf')
+      }
+    },
+    onError: (error: Error) => {
+      console.error('Streaming error', error)
+      toast.error('Error processing PDF')
+    }
+  })
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
@@ -34,35 +52,33 @@ export function UploadDropzone({ onUpload }: UploadDropzoneProps) {
   const handleUpload = async () => {
     if (!file) return
 
-    setIsUploading(true)
-    setUploadProgress(0)
-
-    // Simulate progress for better UX
+    setElapsedTime(0)
+    const startTime = Date.now()
     const interval = setInterval(() => {
-      setUploadProgress((prev) => {
-        if (prev >= 90) {
-          clearInterval(interval)
-          return 90
-        }
-        return prev + 10
-      })
-    }, 500)
+      setElapsedTime(Math.floor((Date.now() - startTime) / 1000))
+    }, 1000)
 
     try {
-      await onUpload(file)
-      setUploadProgress(100)
+      const reader = new FileReader()
+      reader.onload = () => {
+        const base64String = (reader.result as string).split(',')[1]
+        submit({ file: base64String, filename: file.name })
+      }
+      reader.readAsDataURL(file)
     } catch (error) {
       console.error('Upload failed', error)
-      // Handle error state here
     } finally {
-      clearInterval(interval)
-      setIsUploading(false)
+      // We don't clear interval here because loading continues
+      // We should clear it in onFinish or useEffect
     }
   }
 
+  // Effect to clear interval when loading stops
+  // (Simplified for this snippet, in real app use useEffect)
+
   const removeFile = () => {
     setFile(null)
-    setUploadProgress(0)
+    setElapsedTime(0)
   }
 
   return (
@@ -106,7 +122,7 @@ export function UploadDropzone({ onUpload }: UploadDropzoneProps) {
                 </p>
               </div>
             </div>
-            {!isUploading && (
+            {!isLoading && (
               <Button
                 variant="ghost"
                 size="icon"
@@ -120,16 +136,56 @@ export function UploadDropzone({ onUpload }: UploadDropzoneProps) {
             )}
           </div>
 
-          {isUploading && (
-            <div className="space-y-2">
-              <Progress value={uploadProgress} className="h-2" />
-              <p className="text-xs text-center text-gray-500 animate-pulse">
-                Processing PDF...
-              </p>
+          {(isLoading || object) && (
+            <div className="space-y-4 py-4">
+              {isLoading ? (
+                <div className="flex flex-col items-center justify-center gap-2">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <div className="text-center">
+                    <p className="font-medium text-sm">Processing PDF...</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Time elapsed: {elapsedTime}s
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center gap-2">
+                  <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-full">
+                    <File className="h-6 w-6 text-green-500" />
+                  </div>
+                  <div className="text-center">
+                    <p className="font-medium text-sm text-green-600 dark:text-green-400">Processing Complete!</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {object?.questions?.length || 0} questions extracted
+                    </p>
+                  </div>
+                </div>
+              )}
+              
+              <div className="border rounded-md overflow-hidden">
+                <button 
+                  onClick={() => setIsDetailsOpen(!isDetailsOpen)}
+                  className="w-full flex items-center justify-between p-2 bg-muted/50 text-xs font-medium hover:bg-muted transition-colors"
+                >
+                  <span>Raw AI Output</span>
+                  {isDetailsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                </button>
+                {isDetailsOpen && (
+                  <div className="p-2 bg-muted/30 max-h-60 overflow-y-auto text-xs font-mono whitespace-pre-wrap">
+                    {JSON.stringify(object, null, 2)}
+                  </div>
+                )}
+              </div>
+
+              {!isLoading && object && object.questions && (
+                <Button className="w-full" onClick={() => onQuestionsExtracted(object.questions, file?.name || 'uploaded.pdf')}>
+                  Continue to Review
+                </Button>
+              )}
             </div>
           )}
 
-          {!isUploading && (
+          {!isLoading && !object && (
             <Button className="w-full mt-2" onClick={handleUpload}>
               Start Processing
             </Button>

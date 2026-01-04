@@ -1,31 +1,22 @@
 'use client'
 
-import { processPdf } from '@/lib/ai/actions'
+
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { UploadDropzone } from '@/components/ui/upload-dropzone'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
+import { useState } from 'react'
+import { Question } from '@/lib/ai/schemas'
+import { QuestionEditor } from '@/components/question-editor'
+
 export default function UploadPage() {
-  const router = useRouter()
+  const [questions, setQuestions] = useState<Question[]>([])
+  const [sourceFileName, setSourceFileName] = useState<string>('')
 
-  const handleUpload = async (file: File) => {
-    const formData = new FormData()
-    formData.append('file', file)
-
-    try {
-      const result = await processPdf(formData)
-      if (result.success && result.sourceFileId) {
-        toast.success('PDF processed successfully!')
-        router.push(`/upload/review/${result.sourceFileId}`)
-      } else {
-        console.error(result.error)
-        toast.error('Upload failed: ' + result.error)
-      }
-    } catch (error) {
-      console.error(error)
-      toast.error('An unexpected error occurred')
-    }
+  const handleQuestionsExtracted = (extractedQuestions: Question[], fileName: string) => {
+    setQuestions(extractedQuestions)
+    setSourceFileName(fileName)
   }
 
   return (
@@ -38,17 +29,21 @@ export default function UploadPage() {
           </p>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Import PDF</CardTitle>
-            <CardDescription>
-              Drag and drop your PDF file here. We'll process it and extract questions for you to review.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <UploadDropzone onUpload={handleUpload} />
-          </CardContent>
-        </Card>
+        {questions.length === 0 ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Import PDF</CardTitle>
+              <CardDescription>
+                Drag and drop your PDF file here. We'll process it and extract questions for you to review.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <UploadDropzone onQuestionsExtracted={handleQuestionsExtracted} />
+            </CardContent>
+          </Card>
+        ) : (
+          <QuestionEditor initialQuestions={questions} sourceFileName={sourceFileName} />
+        )}
       </div>
     </div>
   )

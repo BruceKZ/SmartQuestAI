@@ -31,7 +31,6 @@ model Question {
   options       Json?          // [{id: "A", content: "..."}]
   answer        Json?          // Correct Answer structure
   explanation   String?        // Markdown
-  difficulty    Int            @default(1) // 1-5
   status        QuestionStatus @default(REVIEW)
   parent_pdf_id String?
   created_at    DateTime       @default(now())
@@ -100,6 +99,7 @@ enum QuestionType {
   MULTI
   SHORT
   ESSAY
+  TRUE_FALSE
 }
 
 enum QuestionStatus {

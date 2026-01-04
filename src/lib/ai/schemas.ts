@@ -1,19 +1,19 @@
 import { z } from 'zod'
 
-export const QuestionTypeEnum = z.enum(['SINGLE', 'MULTI', 'SHORT', 'ESSAY'])
+export const QuestionTypeEnum = z.enum(['SINGLE', 'MULTI', 'TRUE_FALSE', 'ESSAY'])
 
 export const OptionSchema = z.object({
-  id: z.string().describe('The option identifier, e.g., "A", "B", "1", "2"'),
-  content: z.string().describe('The text content of the option'),
+  id: z.string().describe("The option label, e.g., 'A', 'B' or '1', '2'"),
+  content: z.string().describe("The text of the option"),
 })
 
 export const QuestionSchema = z.object({
-  content: z.string().describe('The main text of the question. Use Markdown and LaTeX for math.'),
-  type: QuestionTypeEnum.describe('The type of the question'),
-  options: z.array(OptionSchema).optional().describe('List of options for multiple choice questions'),
-  answer: z.any().describe('The correct answer. For SINGLE/MULTI, use the option ID(s). For SHORT/ESSAY, provide the text answer.'),
-  explanation: z.string().optional().describe('Detailed explanation of the solution'),
-  difficulty: z.number().min(1).max(5).optional().describe('Difficulty level from 1 (Easy) to 5 (Hard)'),
+  id: z.string().optional().describe("The question number, e.g., '1', '40a'"),
+  type: QuestionTypeEnum.describe("Type of the question"),
+  content: z.string().describe("The markdown formatted question stem, including sub-questions if any"),
+  options: z.array(OptionSchema).optional().describe("Only for choice-based questions"),
+  answer: z.union([z.string(), z.array(z.string())]).optional().describe("The ID(s) of the correct option(s), or the short textual answer"),
+  explanation: z.string().optional().describe("The detailed solution text extracted from the document"),
 })
 
 export const ExtractionResultSchema = z.object({
