@@ -1,6 +1,8 @@
 import { getQuestions, getAllTags } from '@/lib/actions/questions'
 import { QuestionCard } from '@/components/questions/question-card'
 
+export const dynamic = 'force-dynamic'
+
 export default async function LibraryPage() {
   const { questions, total } = await getQuestions()
   const allTags = await getAllTags()
@@ -18,7 +20,7 @@ export default async function LibraryPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {questions.map((question) => (
+        {questions.map((question: any) => (
           <QuestionCard key={question.id} question={question} allTags={allTags} />
         ))}
       </div>

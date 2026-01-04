@@ -1,3 +1,5 @@
+'use server'
+
 import { generateObject } from 'ai'
 import { openai } from '@ai-sdk/openai'
 import { ExtractionResultSchema } from './schemas'
@@ -79,6 +81,8 @@ export async function processPdf(formData: FormData) {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
+    let userId: string
+
     if (!user) {
         // For development without auth, we can try to find a user or throw
         // throw new Error('Unauthorized')
@@ -90,9 +94,9 @@ export async function processPdf(formData: FormData) {
                  data: { email: 'demo@example.com' }
              })
              // Use this user
-             var userId = newUser.id
+             userId = newUser.id
         } else {
-            var userId = firstUser.id
+            userId = firstUser.id
         }
     } else {
         // Ensure user exists in Prisma (sync if needed)
@@ -103,7 +107,7 @@ export async function processPdf(formData: FormData) {
                  data: { id: user.id, email: user.email! }
              })
         }
-        var userId = user.id
+        userId = user.id
     }
 
     // Create SourceFile

@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 
-export default async function ReviewPage({ params }: { params: { id: string } }) {
+export default async function ReviewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   
   const sourceFile = await prisma.sourceFile.findUnique({
@@ -19,7 +19,7 @@ export default async function ReviewPage({ params }: { params: { id: string } })
     <div className="container mx-auto py-10">
       <h1 className="text-3xl font-bold mb-6">Review Questions</h1>
       <div className="grid gap-6">
-        {sourceFile.questions.map((question) => (
+        {sourceFile.questions.map((question: any) => (
           <div key={question.id} className="border p-4 rounded-lg">
             <div className="font-semibold mb-2">{question.type}</div>
             <div className="prose dark:prose-invert">

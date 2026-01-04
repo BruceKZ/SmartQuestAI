@@ -3,6 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 
+export const dynamic = 'force-dynamic'
+
 export default async function ListsPage() {
   const lists = await prisma.problemList.findMany({
     orderBy: { created_at: 'desc' },
@@ -25,7 +27,7 @@ export default async function ListsPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {lists.map((list) => (
+        {lists.map((list: any) => (
           <Card key={list.id} className="cursor-pointer hover:border-primary transition-colors">
             <CardHeader>
               <CardTitle>{list.title}</CardTitle>

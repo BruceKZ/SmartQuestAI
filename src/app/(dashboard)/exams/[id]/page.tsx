@@ -2,7 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 import { ExamShell } from '@/components/exams/exam-shell'
 
-export default async function ExamPage({ params }: { params: { id: string } }) {
+export default async function ExamPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
 
   // Fetch the exam session or problem list
