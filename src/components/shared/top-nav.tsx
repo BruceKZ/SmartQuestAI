@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
@@ -14,8 +14,10 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { GraduationCap, Menu, User, Settings, LogOut } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
+import { createClient } from '@/lib/supabase/client'
+import { User as SupabaseUser } from '@supabase/supabase-js'
 
 const navItems = [
   { href: '/library', label: 'Dashboard' },
@@ -26,7 +28,28 @@ const navItems = [
 
 export function TopNav() {
   const pathname = usePathname()
+  const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
+  const [user, setUser] = useState<SupabaseUser | null>(null)
+  const supabase = createClient()
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setUser(user)
+    }
+    getUser()
+  }, [supabase])
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    router.push('/login')
+    router.refresh()
+  }
+
+  const userInitials = user?.email
+    ? user.email.substring(0, 2).toUpperCase()
+    : 'SQ'
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -102,17 +125,17 @@ export function TopNav() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src="/avatars/01.png" alt="@shadcn" />
-                  <AvatarFallback>SQ</AvatarFallback>
+                  <AvatarImage src={user?.user_metadata?.avatar_url} alt={user?.email || 'User'} />
+                  <AvatarFallback>{userInitials}</AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56" align="end" forceMount>
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">User</p>
+                  <p className="text-sm font-medium leading-none">{user?.user_metadata?.full_name || 'User'}</p>
                   <p className="text-xs leading-none text-muted-foreground">
-                    user@example.com
+                    {user?.email || ''}
                   </p>
                 </div>
               </DropdownMenuLabel>
@@ -130,7 +153,7 @@ export function TopNav() {
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Log out</span>
               </DropdownMenuItem>
