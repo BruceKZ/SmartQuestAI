@@ -23,7 +23,6 @@ const navItems = [
   { href: '/library', label: 'Dashboard' },
   { href: '/upload', label: 'Upload' },
   { href: '/exams', label: 'Exams' },
-  { href: '/settings', label: 'Settings' },
 ]
 
 export function TopNav() {
